@@ -1,0 +1,6 @@
+networkx>=3.2
+numpy>=1.26
+svglib>=1.5
+reportlab>=4.0
+rlPyCairo>=0.3
+Pillow>=10.0
