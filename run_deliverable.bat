@@ -1,8 +1,10 @@
 @echo off
-REM Build schematic + result.zip for the client project layout:
-REM   <project>\final_ptl_output.cir
-REM   <project>\spice-cir-diagram\   (this folder)
-REM   <project>\result.zip           (created)
+REM Build schematic from CIR.cir into this working directory (flat layout).
+REM No zip. No output/ folder.
+REM
+REM   CIR.cir
+REM   cir_diagram\
+REM   CIR_full.svg   (created here)
 
 cd /d "%~dp0"
 
@@ -15,7 +17,7 @@ if errorlevel 1 (
   exit /b 1
 )
 
-%PY% -m cir_diagram.cli "..\74181_optimized_ptl.cir" -o "output\final_ptl_full.svg" --mode single --max-per-row 80
+%PY% -m cir_diagram.cli "CIR.cir" -o "CIR_full.svg" --mode single --max-per-row 80
 if errorlevel 1 (
   echo Build failed.
   pause
@@ -23,5 +25,5 @@ if errorlevel 1 (
 )
 
 echo.
-echo Success. Deliverable: "%~dp0..\result.zip"
+echo Success. Deliverable: "%~dp0CIR_full.svg"
 pause
