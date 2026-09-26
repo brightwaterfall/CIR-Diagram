@@ -22,9 +22,9 @@ from cir_diagram.spice_parser import parse_cir_file  # noqa: E402
 
 
 def main() -> int:
-    circuit = parse_cir_file(ROOT.parent / "final_ptl_output.cir")
+    circuit = parse_cir_file(ROOT / "CIR.cir")
     svg_path, stats = render_single(
-        circuit, ROOT / "output" / "final_ptl_full.svg", max_per_row=80
+        circuit, ROOT / "CIR_full.svg", max_per_row=80
     )
     svg = svg_path.read_text(encoding="utf-8")
     mos = [c for c in circuit.components if c.kind in {"m_n", "m_p"}]

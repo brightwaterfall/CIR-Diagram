@@ -1,4 +1,4 @@
-"""Verification for the final_ptl_output.cir pipeline."""
+"""Verification for the CIR.cir pipeline (flat working directory)."""
 from __future__ import annotations
 
 import re
@@ -22,8 +22,8 @@ from cir_diagram.spice_parser import parse_cir_file
 from cir_diagram.to_netlistsvg import circuit_to_netlistsvg_json
 
 ROOT = Path(__file__).resolve().parent
-CIR = ROOT.parent / "final_ptl_output.cir"
-OUT = ROOT / "output"
+CIR = ROOT / "CIR.cir"
+OUT = ROOT
 
 errors: list[str] = []
 passed = 0
@@ -149,7 +149,7 @@ def main() -> int:
     check("Text overlaps detected: 0" in r.stdout, "CLI reports zero overlaps")
 
     print("\n=== 8. SINGLE-PAGE SCHEMATIC ===")
-    single, stats = render_single(circuit, OUT / "final_ptl_full.svg", max_per_row=80)
+    single, stats = render_single(circuit, OUT / "CIR_full.svg", max_per_row=80)
     check(single.is_file() and single.stat().st_size > 100_000, "one-page SVG written")
     check(stats["devices"] == 326, f"all 326 devices on the sheet (got {stats['devices']})")
     svg_text = single.read_text(encoding="utf-8")
