@@ -1,0 +1,9 @@
+# Generated diagram artifacts (flat working directory)
+*_full.svg
+*_full.png
+*.json
+*_stats.txt
+__pycache__/
+*.pyc
+.venv/
+venv/
