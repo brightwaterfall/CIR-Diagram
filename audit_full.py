@@ -114,8 +114,9 @@ def main() -> int:
             if not on_wire(px, py):
                 missing.append(f"{m.name}.{pin}")
 
-    m3 = centres["M3"]
-    int4_ok = "INT_4" in labeled and on_wire(m3[0], m3[1] + BOX_H / 2)
+    # Spot-check: first device drain pin and a known primary output label exist.
+    m1 = centres["M1"]
+    spot_ok = "A_EQ_B" in labeled and on_wire(m1[0], m1[1] + BOX_H / 2)
 
     print("=== FULL AUDIT ===")
     print(f"devices: {len(centres)}")
@@ -127,7 +128,7 @@ def main() -> int:
     print(f"svg label overlaps: {geo_overlaps}")
     print(f"dangling H stubs: {stats.get('dangling_stubs')}")
     print(f"floating junctions (no V): {floating}")
-    print(f"INT_4/M3 ok: {int4_ok}")
+    print(f"A_EQ_B/M1 spot-check ok: {spot_ok}")
 
     bad = (
         len(centres) != 376
@@ -138,7 +139,7 @@ def main() -> int:
         or stats.get("label_overlaps", 0) > 0
         or geo_overlaps > 0
         or stats.get("dangling_stubs", 0) > 0
-        or not int4_ok
+        or not spot_ok
     )
     print("RESULT:", "PASS" if not bad else "FAIL")
     return 1 if bad else 0
