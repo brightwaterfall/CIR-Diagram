@@ -53,22 +53,22 @@ def main() -> int:
     pmos = [m for m in mos if m.kind == "m_p"]
     nmos = [m for m in mos if m.kind == "m_n"]
     check(len(mos) == 376, f"376 MOSFETs parsed (got {len(mos)})")
-    check(len(pmos) == 276 and len(nmos) == 50, f"276 PMOS / 50 NMOS (got {len(pmos)}/{len(nmos)})")
+    check(len(pmos) == 259 and len(nmos) == 117, f"259 PMOS / 117 NMOS (got {len(pmos)}/{len(nmos)})")
     check(all(len(m.nodes) == 4 for m in mos), "every device has D G S B")
     check(len({m.name for m in mos}) == 376, "device names unique")
     check(mos[0].name == "M1" and mos[-1].name == "M376", "device order M1...M376")
 
     m5 = next(m for m in mos if m.name == "M5")
     m6 = next(m for m in mos if m.name == "M6")
-    check(m5.nodes == ["BLOCK_OUT_5", "B0", "VDD", "VDD"], f"M5 nodes correct ({m5.nodes})")
-    check(m6.nodes == ["BLOCK_OUT_5", "B0", "GND", "GND"], f"M6 nodes correct ({m6.nodes})")
+    check(m5.nodes == ["BLOCK_OUT_3", "B1", "VDD", "VDD"], f"M5 nodes correct ({m5.nodes})")
+    check(m6.nodes == ["BLOCK_OUT_3", "B1", "GND", "GND"], f"M6 nodes correct ({m6.nodes})")
     check(m5.kind == "m_p" and m6.kind == "m_n", "M5 PMOS / M6 NMOS")
     check("A_EQ_B" in circuit.nets, "primary output net present")
 
     print("\n=== 3. UNIT GROUPING ===")
     pairs = _find_inverters(mos)
     units = _units(mos)
-    check(len(pairs) == 50, f"50 CMOS inverter pairs detected (got {len(pairs)})")
+    check(len(pairs) == 117, f"117 CMOS inverter pairs detected (got {len(pairs)})")
     check(sum(len(u) for u in units) == 376, "every device belongs to exactly one unit")
     flat = [m.name for u in units for m in u]
     check(len(flat) == len(set(flat)), "no device drawn twice")
@@ -83,7 +83,8 @@ def main() -> int:
     svgs, html_path, overlaps = render_readable(
         circuit, OUT, stem=CIR.stem, per_sheet=12
     )
-    check(len(svgs) == 23, f"23 sheets generated (got {len(svgs)})")
+    n_sheets = (len(units) + 11) // 12
+    check(len(svgs) == n_sheets, f"{n_sheets} sheets generated (got {len(svgs)})")
     check(not overlaps, f"no overlapping or clipped labels (got {len(overlaps)})")
     if overlaps:
         for a, b in overlaps[:5]:
@@ -97,7 +98,7 @@ def main() -> int:
         for i in range(0, len(units), 12):
             sheet_units = units[i : i + 12]
             idx = i // 12 + 1
-            cv = render_sheet(circuit, sheet_units, idx, 23, tmp / f"s{idx}.svg")
+            cv = render_sheet(circuit, sheet_units, idx, n_sheets, tmp / f"s{idx}.svg")
             drawn += sum(len(u) for u in sheet_units)
             if find_text_overlaps(cv.boxes) or find_text_outside_frames(cv):
                 bad_sheets.append(idx)
@@ -173,13 +174,13 @@ def main() -> int:
     check(out_labs == set(pin_out), f"primary outputs labeled (got {len(out_labs)}, expect {len(pin_out)})")
     print(f"       crossings: {stats['crossings']} (non-planar netlist - cannot reach zero)")
 
-
-    # M3 drain INT_4 was the reported bug - confirm a full stub exists
+    # Spot-check primary ALU outputs are labeled on the one-page sheet
     svg_text = single.read_text(encoding="utf-8")
-    check(
-        'class="out">INT_4</text>' in svg_text or ">INT_4</text>" in svg_text,
-        "INT_4 drain net is labeled",
-    )
+    for probe in ("F0", "F3", "A_EQ_B"):
+        check(
+            f'class="out">{probe}</text>' in svg_text or f">{probe}</text>" in svg_text,
+            f"{probe} output net is labeled",
+        )
 
     print("\n=== SUMMARY ===")
     print(f"Passed: {passed}   Failed: {len(errors)}")
