@@ -43,6 +43,22 @@ PRIMARY_OUTPUTS: tuple[str, ...] = (
     "BLOCK_OUT_167",
 )
 
+# Classic 74181-style ports (used when present in the CIR).
+CLASSIC_74181_INPUTS: tuple[str, ...] = (
+    "A0", "A1", "A2", "A3",
+    "B0", "B1", "B2", "B3",
+    "S0", "S1", "S2", "S3",
+    "M", "Cn",
+)
+CLASSIC_74181_OUTPUTS: tuple[str, ...] = (
+    "F0", "F1", "F2", "F3",
+    "A_EQ_B",
+    "P0", "P1", "P2", "P3",
+    "G0", "G1", "G2", "G3",
+    "C0",
+    "Cn4_OUT", "X_OUT", "Y_OUT",
+)
+
 BOX_W = 62.0
 BOX_H = 50.0
 PITCH = 112.0
@@ -59,13 +75,36 @@ CHAR_W = 4.7  # approx monospace label width per character
 LABEL_H = 10.0
 
 
-def classify_net(net: str, has_driver: bool, has_consumer: bool) -> str:
+def classify_net(
+    net: str,
+    has_driver: bool = False,
+    has_consumer: bool = False,
+    primary_inputs: tuple[str, ...] = PRIMARY_INPUTS,
+    primary_outputs: tuple[str, ...] = PRIMARY_OUTPUTS,
+) -> str:
     """Return label class: in / out / nl."""
-    if net in PRIMARY_INPUTS:
+    if net in primary_inputs:
         return "in"
-    if net in PRIMARY_OUTPUTS:
+    if net in primary_outputs:
         return "out"
     return "nl"
+
+
+def _io_sets(
+    circuit: Circuit,
+    primary_inputs: tuple[str, ...] | None,
+    primary_outputs: tuple[str, ...] | None,
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """Pick I/O label sets: explicit args, else classic 74181 if present, else PTL defaults."""
+    nets = circuit.nets
+    if primary_inputs is not None and primary_outputs is not None:
+        return primary_inputs, primary_outputs
+    classic_in = tuple(n for n in CLASSIC_74181_INPUTS if n in nets)
+    classic_out_core = ("F0", "F1", "F2", "F3", "A_EQ_B")
+    if all(n in nets for n in classic_out_core) and len(classic_in) >= 10:
+        outs = tuple(n for n in CLASSIC_74181_OUTPUTS if n in nets)
+        return classic_in, outs
+    return PRIMARY_INPUTS, PRIMARY_OUTPUTS
 
 
 def _mosfets(circuit: Circuit) -> list[Component]:
@@ -236,7 +275,10 @@ def render_single(
     circuit: Circuit,
     out_svg: Path,
     max_per_row: int = 28,
+    primary_inputs: tuple[str, ...] | None = None,
+    primary_outputs: tuple[str, ...] | None = None,
 ) -> tuple[Path, dict]:
+    pin_in, pin_out = _io_sets(circuit, primary_inputs, primary_outputs)
     mos = sorted(_mosfets(circuit), key=lambda m: _num(m.name))
     rows = order_rows(build_rows(mos, max_per_row))
     n_cols = max(len(r) for r in rows)
@@ -290,8 +332,10 @@ def render_single(
             pin_attach[net].append((m, pin, ch, x))
         has_drv = bool(drivers.get(net))
         has_con = bool(consumers.get(net))
-        is_output[net] = net in PRIMARY_OUTPUTS
-        net_class[net] = classify_net(net, has_drv, has_con)
+        is_output[net] = net in pin_out
+        net_class[net] = classify_net(
+            net, has_drv, has_con, primary_inputs=pin_in, primary_outputs=pin_out
+        )
 
     # -- lanes between consecutive occupied channels -----------------
     lanes = LanePool(n_cols)
@@ -750,8 +794,8 @@ def render_single(
                 crossings += 1
     stats["crossings"] = crossings
 
-    n_in = sum(1 for n in PRIMARY_INPUTS if n in net_class)
-    n_out = sum(1 for n in PRIMARY_OUTPUTS if n in net_class)
+    n_in = sum(1 for n in pin_in if n in net_class)
+    n_out = sum(1 for n in pin_out if n in net_class)
     style = (
         ".w{stroke:#3b4453;stroke-width:1.2;fill:none}"
         ".sup{stroke:#111;stroke-width:2}"
@@ -768,8 +812,8 @@ def render_single(
         ".ports{font:700 12px Consolas,monospace;fill:#1a5f9e}"
         ".porto{font:700 12px Consolas,monospace;fill:#c0392b}"
     )
-    in_list = ", ".join(PRIMARY_INPUTS)
-    out_list = ", ".join(PRIMARY_OUTPUTS)
+    in_list = ", ".join(pin_in)
+    out_list = ", ".join(pin_out)
     head = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{width:.0f}" height="{height:.0f}" '
         f'viewBox="0 0 {width:.0f} {height:.0f}">',
