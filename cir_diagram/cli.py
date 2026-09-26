@@ -1,16 +1,16 @@
 """
-CLI: SPICE .CIR -> circuit diagram SVG (+ HTML report).
+CLI: SPICE .CIR -> circuit diagram SVG (+ optional PNG).
 
-  py -m cir_diagram.cli path\\to\\file.cir -o output\\diagram.svg
+  py -m cir_diagram.cli CIR.cir
+  py -m cir_diagram.cli CIR.cir -o CIR_full.svg
 
-Deliverable zip is always written to the project folder as result.zip
+Outputs are written in the working directory (no output/ folder, no zip).
 """
 
 from __future__ import annotations
 
 import argparse
 import sys
-import zipfile
 from pathlib import Path
 
 from .render_readable import render_readable
@@ -20,9 +20,8 @@ from .render_wired import render_wired
 from .spice_parser import parse_cir_file
 from .to_netlistsvg import write_netlist_json
 
-# Workspace / client project root (parent of spice-cir-diagram/)
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-RESULT_ZIP = PROJECT_ROOT / "result.zip"
+# Repo / working-directory root (parent of cir_diagram/)
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
 def _write_png(svg_path: Path, png_path: Path) -> bool:
@@ -48,27 +47,16 @@ def _write_png(svg_path: Path, png_path: Path) -> bool:
         return False
 
 
-def package_result(svg_path: Path, png_path: Path | None = None) -> Path:
-    """Always write/overwrite PROJECT_ROOT/result.zip with SVG (+ PNG if available)."""
-    files: list[Path] = [svg_path]
-    if png_path is None:
-        png_path = svg_path.with_suffix(".png")
-    if not png_path.is_file():
-        _write_png(svg_path, png_path)
-    if png_path.is_file():
-        files.append(png_path)
-
-    RESULT_ZIP.parent.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(RESULT_ZIP, "w", zipfile.ZIP_DEFLATED) as zf:
-        for f in files:
-            zf.write(f, f.name)
-    return RESULT_ZIP
-
-
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="Draw circuit diagram from SPICE .CIR")
     p.add_argument("cir", type=Path, help="Input .CIR file")
-    p.add_argument("-o", "--output", type=Path, default=None, help="Output SVG path (legacy graph mode)")
+    p.add_argument(
+        "-o",
+        "--output",
+        type=Path,
+        default=None,
+        help="Output SVG path (default: <cir_stem>_full.svg in the working directory)",
+    )
     p.add_argument(
         "--mode",
         choices=("single", "wired", "readable", "graph"),
@@ -107,7 +95,10 @@ def main(argv: list[str] | None = None) -> int:
         print(f"File not found: {args.cir}", file=sys.stderr)
         return 1
 
-    out_svg = args.output or Path("output") / f"{args.cir.stem}.svg"
+    # Flat working directory: SVG/PNG/JSON next to the CIR (or cwd), never output/
+    out_svg = args.output or Path(f"{args.cir.stem}_full.svg")
+    if not out_svg.is_absolute():
+        out_svg = Path.cwd() / out_svg
     out_dir = out_svg.parent
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -142,8 +133,7 @@ def main(argv: list[str] | None = None) -> int:
         png = svg.with_suffix(".png")
         if _write_png(svg, png):
             print(f"  PNG:   {png}")
-        result = package_result(svg, png if png.is_file() else None)
-        print(f"  Deliverable: {result}")
+        print(f"  Deliverable: {svg}" + (f" + {png.name}" if png.is_file() else ""))
     elif args.mode == "wired":
         svgs, html = render_wired(
             circuit,
@@ -172,7 +162,7 @@ def main(argv: list[str] | None = None) -> int:
 
     stats_path = out_dir / f"{args.cir.stem}_stats.txt"
     write_stats(circuit, stats_path)
-    print(f"  Stats:{stats_path}")
+    print(f"  Stats: {stats_path}")
     return 0
 
 
