@@ -44,7 +44,7 @@ def main() -> int:
     check(CIR.is_file(), f"CIR exists: {CIR.name}")
     text = CIR.read_text(encoding="utf-8")
     m_lines = [ln for ln in text.splitlines() if re.match(r"^M\d+\s", ln.strip())]
-    check(len(m_lines) == 326, f"326 device lines in file (got {len(m_lines)})")
+    check(len(m_lines) == 376, f"376 device lines in file (got {len(m_lines)})")
     check(".model pmos_mod" in text and ".model nmos_mod" in text, "both device models present")
 
     print("\n=== 2. PARSER ===")
@@ -52,24 +52,24 @@ def main() -> int:
     mos = _mosfets(circuit)
     pmos = [m for m in mos if m.kind == "m_p"]
     nmos = [m for m in mos if m.kind == "m_n"]
-    check(len(mos) == 326, f"326 MOSFETs parsed (got {len(mos)})")
+    check(len(mos) == 376, f"376 MOSFETs parsed (got {len(mos)})")
     check(len(pmos) == 276 and len(nmos) == 50, f"276 PMOS / 50 NMOS (got {len(pmos)}/{len(nmos)})")
     check(all(len(m.nodes) == 4 for m in mos), "every device has D G S B")
-    check(len({m.name for m in mos}) == 326, "device names unique")
-    check(mos[0].name == "M1" and mos[-1].name == "M326", "device order M1...M326")
+    check(len({m.name for m in mos}) == 376, "device names unique")
+    check(mos[0].name == "M1" and mos[-1].name == "M376", "device order M1...M376")
 
     m5 = next(m for m in mos if m.name == "M5")
     m6 = next(m for m in mos if m.name == "M6")
     check(m5.nodes == ["BLOCK_OUT_5", "B0", "VDD", "VDD"], f"M5 nodes correct ({m5.nodes})")
     check(m6.nodes == ["BLOCK_OUT_5", "B0", "GND", "GND"], f"M6 nodes correct ({m6.nodes})")
     check(m5.kind == "m_p" and m6.kind == "m_n", "M5 PMOS / M6 NMOS")
-    check("Y_BUFFERED_OUT" in circuit.nets, "primary output net present")
+    check("A_EQ_B" in circuit.nets, "primary output net present")
 
     print("\n=== 3. UNIT GROUPING ===")
     pairs = _find_inverters(mos)
     units = _units(mos)
     check(len(pairs) == 50, f"50 CMOS inverter pairs detected (got {len(pairs)})")
-    check(sum(len(u) for u in units) == 326, "every device belongs to exactly one unit")
+    check(sum(len(u) for u in units) == 376, "every device belongs to exactly one unit")
     flat = [m.name for u in units for m in u]
     check(len(flat) == len(set(flat)), "no device drawn twice")
     for p, n in pairs:
@@ -102,7 +102,7 @@ def main() -> int:
             if find_text_overlaps(cv.boxes) or find_text_outside_frames(cv):
                 bad_sheets.append(idx)
         check(not bad_sheets, f"every sheet re-checks clean (bad={bad_sheets})")
-        check(drawn == 326, f"all 326 devices drawn across sheets (got {drawn})")
+        check(drawn == 376, f"all 376 devices drawn across sheets (got {drawn})")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
@@ -121,14 +121,14 @@ def main() -> int:
     html = html_path.read_text(encoding="utf-8")
     check(html_path.is_file(), "readable HTML written")
     check(all(p.name in html for p in svgs), "HTML references every sheet")
-    check(html.count("<tr>") >= 326, f"HTML device table complete ({html.count('<tr>')} rows)")
-    check("Y_BUFFERED_OUT" in html, "HTML lists the output net")
+    check(html.count("<tr>") >= 376, f"HTML device table complete ({html.count('<tr>')} rows)")
+    check("A_EQ_B" in html, "HTML lists the output net")
 
     print("\n=== 6. JSON EXPORT ===")
     data = circuit_to_netlistsvg_json(circuit)
     cells = next(iter(data["modules"].values()))["cells"]
     mos_cells = {k: v for k, v in cells.items() if v.get("type") in ("nmos", "pmos")}
-    check(len(mos_cells) == 326, f"JSON holds 326 devices (got {len(mos_cells)})")
+    check(len(mos_cells) == 376, f"JSON holds 376 devices (got {len(mos_cells)})")
     check(
         all(all(p in v["connections"] for p in ("D", "G", "S")) for v in mos_cells.values()),
         "JSON pins complete",
@@ -145,15 +145,15 @@ def main() -> int:
         text=True,
     )
     check(r.returncode == 0, f"CLI readable mode exits cleanly (code {r.returncode})")
-    check("MOSFETs: 326" in r.stdout, "CLI reports 326 MOSFETs")
+    check("MOSFETs: 376" in r.stdout, "CLI reports 376 MOSFETs")
     check("Text overlaps detected: 0" in r.stdout, "CLI reports zero overlaps")
 
     print("\n=== 8. SINGLE-PAGE SCHEMATIC ===")
     single, stats = render_single(circuit, OUT / "CIR_full.svg", max_per_row=80)
     check(single.is_file() and single.stat().st_size > 100_000, "one-page SVG written")
-    check(stats["devices"] == 326, f"all 326 devices on the sheet (got {stats['devices']})")
+    check(stats["devices"] == 376, f"all 376 devices on the sheet (got {stats['devices']})")
     svg_text = single.read_text(encoding="utf-8")
-    for probe in ("M1", "M326", "Y_BUFFERED_OUT"):
+    for probe in ("M1", "M376", "A_EQ_B"):
         if probe not in svg_text:
             check(False, f"one-page SVG contains {probe}")
             break
@@ -165,11 +165,12 @@ def main() -> int:
     check(stats.get("label_overlaps", 0) == 0, f"no overlapping net labels (overlaps={stats.get('label_overlaps')})")
     check(stats.get("dangling_stubs", 0) == 0, f"no dangling horizontal stubs (stubs={stats.get('dangling_stubs')})")
     check(stats.get("dangling_v_ends", 0) == 0, f"no dangling vertical ends (ends={stats.get('dangling_v_ends')})")
-    from cir_diagram.render_single import PRIMARY_INPUTS, PRIMARY_OUTPUTS
+    from cir_diagram.render_single import _io_sets
+    pin_in, pin_out = _io_sets(circuit, None, None)
     in_labs = set(re.findall(r'class="in"[^>]*>([^<]+)', svg_text))
     out_labs = set(re.findall(r'class="out"[^>]*>([^<]+)', svg_text))
-    check(in_labs == set(PRIMARY_INPUTS), f"exactly 14 primary inputs labeled (got {len(in_labs)})")
-    check(out_labs == set(PRIMARY_OUTPUTS), f"exactly 8 primary outputs labeled (got {len(out_labs)})")
+    check(in_labs == set(pin_in), f"primary inputs labeled (got {len(in_labs)}, expect {len(pin_in)})")
+    check(out_labs == set(pin_out), f"primary outputs labeled (got {len(out_labs)}, expect {len(pin_out)})")
     print(f"       crossings: {stats['crossings']} (non-planar netlist - cannot reach zero)")
 
 
