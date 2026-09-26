@@ -74,7 +74,7 @@ def main() -> int:
         or stats["split_nets"]
         or stats.get("label_overlaps", 0)
         or stats.get("dangling_stubs", 0)
-        or devices != 326
+        or devices != 376
     )
     print("RESULT:", "PASS" if not bad else "FAIL")
     return 1 if bad else 0
