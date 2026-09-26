@@ -130,7 +130,7 @@ def main() -> int:
     print(f"INT_4/M3 ok: {int4_ok}")
 
     bad = (
-        len(centres) != 326
+        len(centres) != 376
         or unlabeled
         or missing
         or stats["missing_pins"]
